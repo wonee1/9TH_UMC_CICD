@@ -1,0 +1,32 @@
+name: Deploy to GCP VM
+
+on:
+  push:
+    branches:
+      - main-winny
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.GCP_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.GCP_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to VM via SSH
+        run: |
+          ssh ${{ secrets.GCP_USER }}@${{ secrets.GCP_HOST }} '
+            cd ~/9TH_UMC_CICD &&
+            git pull origin main-winny &&
+            docker stop umc-app || true &&
+            docker rm umc-app || true &&
+            docker build -t umc-app . &&
+            docker run -d --name umc-app -p 8080:8080 umc-app
+          '
